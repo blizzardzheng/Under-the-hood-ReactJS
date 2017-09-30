@@ -2,27 +2,27 @@
 
 [![](https://rawgit.com/Bogdan-Lyashenko/Under-the-hood-ReactJS/master/stack/images/3/part-3.svg)](https://rawgit.com/Bogdan-Lyashenko/Under-the-hood-ReactJS/master/stack/images/3/part-3.svg)
 
-<em>3.0 Part 3 (clickable)</em>
+<em>3.0 第 3 部分 (点击查看大图)</em>
 
-### Mount
+### 挂载
 
-The method `componentMount` is one of the biggest parts of our journey! So, the method that is interesting for us is `ReactCompositeComponent.mountComponent`(1).
+ `componentMount` 方法是我们整个系列中极其重要的一个板块。如图，我们关注`ReactCompositeComponent.mountComponent`(1) 方法
 
-If you remember, I mentioned that the **first component that is pushed into a component's tree** is `TopLevelWrapper` (internal React class). Here, we are going to mount it. But... it’s basically an empty wrapper, so, it’s kind of boring to debug. It doesn’t affect flow at all, so, I suggest we skip it right now and move on to its child.
+如果你还记得，前文提到过 **组件树的入口组件** 是 `TopLevelWrapper` 组件 ( React 底层内部类 )。 我们准备挂载它。由于它实际上是一个空的包装器，调试起来非常枯燥并且对实际的流程而言并没有任何影响，所以我们跳过这个组件从他的孩子组件开始分析。
 
-That’s how mounting of a tree actually works, you mount the parent, then its child, and a child of a child, and so on. Just believe me, after `TopLevelWrapper` is mounted, the child of it (`ReactCompositeComponent`, which manages the `ExampleApplication` component) will be put into the same phase.
+把组件挂载到组件树上的过程就是先挂载父亲组件，然后他的孩子组件，然后他的孩子的孩子组件，依次类推。可以肯定，当 `TopLevelWrapper` 挂载后，他的孩子组件 (用来管理 `ExampleApplication` 的组件`ReactCompositeComponent` ) 也会在同一阶段注入.
 
-Alright, we are back to step (1). Let’s see what's inside. There are some key actions that are going to happen, so let’s discuss this logic with details.
+现在我们回到步骤 (1) 观察这个方法的内部实现，有一些重要行为会发生，接下来让我们深入研究这些重要行为。
 
-### Assigning instance updater
+### 构造 instance 和 updater
 
-That `updater` (2), returned from `transaction.getUpdateQueue()`, is actually the `ReactUpdateQueue` module. So, why is it actually **assigned here**? Well, because `ReactCompositeComponent` (the class we are currently looking at) is one used in all platforms, but updaters are different, so we assign it dynamically during mounting depending on the platform.
+从 `transaction.getUpdateQueue()` 结果返回的步骤 (2) 方法  `updater` 实际上就是  `ReactUpdateQueue`  模块。 那么为什么需要在这里构造它呢？因为我们正在研究的类 `ReactCompositeComponent` 是一个全平台的共用的类，但是 `updater` 却依赖于平台环境而不尽相同，所以我们在这里根据不同的平台动态的构造它。
 
-Alright. We don’t really need this `updater` for now, but keep it in mind. `updater` is really **important**, it will be used soon by well-known component method **`setState`**.
+然而，我们现在并不马上需要这个 `updater` ，但是你要记住它是非常重要的，因为它很快就会应用于非常知名的组件内更新方法**`setState`** 。
 
-Actually, not only is `updater` assigned to an instance during this phase, the component instance (your custom component) is also extended with `props`, `context`, and `refs`.
+事实上在这个过程中，不仅仅`updater` 被构造，组件实例（你的自定义组件）也获得了继承的`props`, `context`, and `refs`.
 
-Check out the code below:
+我们来看下面的代码:
 
 ```javascript
 // \src\renderers\shared\stack\reconciler\ReactCompositeComponent.js#255
@@ -34,21 +34,21 @@ inst.refs = emptyObject;
 inst.updater = updateQueue;
 ```
 
-So, then you can access `props` in your code from an instance, like `this.props`.
+因此，你才可以通过一个实例从你的代码中获得 `props` ，比如 `this.props`.
 
-### Create ExampleApplication instance
+### 创建 ExampleApplication 实例
 
-By calling `_constructComponent` (3) and through several construction methods, finally `new ExampleApplication()` will be created. That’s the point when the constructor from our code will be called. So, it's the first time our code was actually touched by React’s ecosystem. Nice.
+通过调用步骤 (3) 的方法  `_constructComponent` 以及几个构造方法，最终创建了  `new ExampleApplication()` 。这就是我们代码中构造方法第一次被执行的时机，当然也是我们的代码第一次实际接触到 React 的生态系统，很棒。
 
 ### Perform initial mount
 
-So, we go through mount (4) and the first thing that should happen here is a call of `componentWillMount` (if it was specified of course). It’s the first method of life-cycle hooks we meet. Also, a bit below you can see `componentDidMount`, but it’s actually just pushed into the transaction queue because it shouldn’t be called directly. It happens only at the very end, when mounting operations are done. Also, you could possibly add `setState` calls inside `componentWillMount`. In that case, the state will of course be re-computed, but without calling the `render` method (it just doesn't make sense to, because the component is not mounted yet).
+接着我们研究步骤 (4) ，第一个即将发生的行为是  `componentWillMount`  (当然仅当它被定义) 的调用。这是我们遇到的第一个生命周期钩子函数。当然，在下面一点你会看到  `componentDidMount` 函数, 只不过这时由于它不能马上执行，而是被注入了一个事务队列中。他会在挂载系列操作执行完毕后执行。当然你也可能在 `componentWillMount ` 内部添加` setState` ，在这种情况下 `state` 会被重新计算但`render`并不会被执行。(这是合理的，因为这时候组件还没有被挂载)
 
-Official documentation proves the same:
+官方文档的解释也证明这一点:
 
 > `componentWillMount()` is invoked immediately before mounting occurs. It is called before `render()`, therefore setting state in this method will not trigger a re-rendering.
 
-Let’s check the code, just to make sure ;)
+以下的代码使我们更自信
 
 ```javascript
 // \src\renderers\shared\stack\reconciler\ReactCompositeComponent.js#476
@@ -57,7 +57,7 @@ if (inst.componentWillMount) {
     inst.componentWillMount();
 
     // When mounting, calls to `setState` by `componentWillMount` will set
-    // `this._pendingStateQueue` without triggering a re-render.
+    // `this._pendingStateQueue` 不会触发重渲染
     if (this._pendingStateQueue) {
         inst.state = this._processPendingState(inst.props, inst.context);
     }
@@ -70,7 +70,7 @@ Alright, the next thing is to create a React component instance. Erm... what, ag
 
 And, call `mountComponent` on it…
 
-### Alright, we’ve finished *Part 3*.
+### 很好，我们已经完成了第三部分
 
 Let’s recap how we got here. Let's look at the scheme one more time, then remove redundant less important pieces, and it becomes this:
 

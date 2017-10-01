@@ -6,21 +6,21 @@
 
 ### 挂载
 
- `componentMount` 是我们整个系列中极其重要的一个板块。如图，我们关注`ReactCompositeComponent.mountComponent` (1) 方法
+ `componentMount` 是我们整个系列中极其重要的一个板块。如图，我们关注 `ReactCompositeComponent.mountComponent` (1) 方法
 
-如果你还记得，前文提到过 **组件树的入口组件** 是 `TopLevelWrapper` 组件 ( React 底层内部类 )。 我们准备挂载它。由于它实际上是一个空的包装器，调试起来非常枯燥并且对实际的流程而言没有任何影响，所以我们跳过这个组件从他的孩子组件开始分析。
+如果你还记得，我曾提到过 **组件树的入口组件** 是 `TopLevelWrapper` 组件 (React 底层内部类)。我们准备挂载它。由于它实际上是一个空的包装器，调试起来非常枯燥并且对实际的流程而言没有任何影响，所以我们跳过这个组件从他的孩子组件开始分析。
 
-把组件挂载到组件树上的过程就是先挂载父亲组件，然后他的孩子组件，然后他的孩子的孩子组件，依次类推。可以肯定，当 `TopLevelWrapper` 挂载后，他的孩子组件 (用来管理 `ExampleApplication` 的组件`ReactCompositeComponent` ) 也会在同一阶段注入.
+把组件挂载到组件树上的过程就是先挂载父亲组件，然后他的孩子组件，然后他的孩子的孩子组件，依次类推。可以肯定，当 `TopLevelWrapper` 挂载后，他的孩子组件 (用来管理 `ExampleApplication` 的组件 `ReactCompositeComponent`) 也会在同一阶段注入.
 
 现在我们回到步骤 (1) 观察这个方法的内部实现，有一些重要行为会发生，接下来让我们深入研究这些重要行为。
 
 ### 构造 instance 和 updater
 
-从 `transaction.getUpdateQueue()` 结果返回的步骤 (2) 方法  `updater` 实际上就是  `ReactUpdateQueue`  模块。 那么为什么需要在这里构造它呢？因为我们正在研究的类 `ReactCompositeComponent` 是一个全平台的共用的类，但是 `updater` 却依赖于平台环境而不尽相同，所以我们在这里根据不同的平台动态的构造它。
+从 `transaction.getUpdateQueue()` 结果返回的步骤 (2) 方法 `updater` 实际上就是 `ReactUpdateQueue` 模块。 那么为什么需要在这里构造它呢？因为我们正在研究的类 `ReactCompositeComponent` 是一个全平台的共用的类，但是 `updater` 却依赖于平台环境而不尽相同，所以我们在这里根据不同的平台动态的构造它。
 
-然而，我们现在并不马上需要这个 `updater` ，但是你要记住它是非常重要的，因为它很快就会应用于非常知名的组件内更新方法 **`setState`** 。
+然而，我们现在并不马上需要这个 `updater` ，但是你要记住它是非常重要的，因为它很快就会应用于非常知名的组件内更新方法 **`setState`**。
 
-事实上在这个过程中，不仅仅`updater` 被构造，组件实例（你的自定义组件）也获得了继承的 `props`, `context`, 和 `refs`.
+事实上在这个过程中，不仅仅 `updater` 被构造，组件实例（你的自定义组件）也获得了继承的 `props`, `context`, 和 `refs`.
 
 我们来看下面的代码:
 
@@ -34,15 +34,15 @@ inst.refs = emptyObject;
 inst.updater = updateQueue;
 ```
 
-因此，你才可以通过一个实例从你的代码中获得 `props` ，比如 `this.props`.
+因此，你才可以通过一个实例从你的代码中获得 `props`，比如 `this.props`。
 
 ### 创建 ExampleApplication 实例
 
-通过调用步骤 (3) 的方法  `_constructComponent` 然后经过几个构造方法的作用后，最终创建了  `new ExampleApplication()` 。这就是我们代码中构造方法第一次被执行的时机，当然也是我们的代码第一次实际接触到 React 的生态系统，很棒。
+通过调用步骤 (3) 的方法  `_constructComponent` 然后经过几个构造方法的作用后，最终创建了 `new ExampleApplication()`。这就是我们代码中构造方法第一次被执行的时机，当然也是我们的代码第一次实际接触到 React 的生态系统，很棒。
 
 ### 执行首次挂载
 
-接着我们研究步骤 (4) ，第一个即将发生的行为是  `componentWillMount`  (当然仅当它被定义时) 的调用。这是我们遇到的第一个生命周期钩子函数。当然，在下面一点你会看到  `componentDidMount` 函数, 只不过这时由于它不能马上执行，而是被注入了一个事务队列中，在很后面执行。他会在挂载系列操作执行完毕后执行。当然你也可能在 `componentWillMount ` 内部调用 ` setState` ，在这种情况下 `state` 会被重新计算但此时不会调用 `render`   。(这是合理的，因为这时候组件还没有被挂载)
+接着我们研究步骤 (4)，第一个即将发生的行为是 `componentWillMount`(当然仅当它被定义时) 的调用。这是我们遇到的第一个生命周期钩子函数。当然，在下面一点你会看到 `componentDidMount` 函数, 只不过这时由于它不能马上执行，而是被注入了一个事务队列中，在很后面执行。他会在挂载系列操作执行完毕后执行。当然你也可能在 `componentWillMount` 内部调用 `setState`，在这种情况下 `state` 会被重新计算但此时不会调用 `render`。(这是合理的，因为这时候组件还没有被挂载)
 
 官方文档的解释也证明这一点:
 
@@ -66,9 +66,9 @@ if (inst.componentWillMount) {
 
 确实如此，但是当 state 被重新计算完成后，会调用我们在组件中申明的 render 方法。再一次接触 “我们的” 代码。
 
-接下来下一步就会创建 React 的组件实例。然后呢？我们已经看见过步骤 (5)  `this._instantiateReactComponent` 的调用了，对吗？是的。在那个时候它为我们的 `ExampleApplication` 组件实例化了 `ReactCompositeComponent` ，现在我们准备基于它的 `render` 方法获得的元素作为它的孩子创建 VDOM (虚拟 DOM) 实例，当该实例被创建后，我们会再次调用 `ReactReconciler.mountComponent` ，但是这次我们传入刚刚新创建的  `ReactDOMComponent` 实例 作为`internalInstance` 。
+接下来下一步就会创建 React 的组件实例。然后呢？我们已经看见过步骤 (5) `this._instantiateReactComponent` 的调用了，对吗？是的。在那个时候它为我们的 `ExampleApplication` 组件实例化了 `ReactCompositeComponent` ，现在我们准备基于它的 `render` 方法获得的元素作为它的孩子创建 VDOM (虚拟 DOM) 实例，当该实例被创建后，我们会再次调用 `ReactReconciler.mountComponent` ，但是这次我们传入刚刚新创建的  `ReactDOMComponent` 实例 作为`internalInstance` 。
 
-然后继续调用此类中的  `mountComponent` 方法，这样递归往下..
+然后继续调用此类中的 `mountComponent` 方法，这样递归往下..
 
 ### 好，**第 3 部分**我们讲完了
 
